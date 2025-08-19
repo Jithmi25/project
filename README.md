@@ -62,7 +62,7 @@ A **peer-to-peer solar trading platform** where excess energy from rooftops and 
   - Clone repo
 ```bash
   
-git clone https://innovatewithballerina.com/Idea_Igniters
+git clone https://github.com/Jithmi25/iwb25-127-idea-igniters.git
 cd solarshare.lk/frontend
 
 ```
