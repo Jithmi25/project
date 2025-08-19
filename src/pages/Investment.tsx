@@ -253,10 +253,16 @@ const Investment = () => {
                           <span className="text-sm text-gray-600">SEC Registered</span>
                         </div>
                         <div className="flex space-x-3">
-                          <button className="text-orange-600 hover:text-orange-700 font-medium">
+                          <button 
+                            onClick={() => handleLearnMore(opportunity.id)}
+                            className="text-orange-600 hover:text-orange-700 font-medium"
+                          >
                             Learn More
                           </button>
-                          <button className="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition-colors flex items-center space-x-2">
+                          <button 
+                            onClick={() => handleInvestNow(opportunity.id)}
+                            className="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition-colors flex items-center space-x-2"
+                          >
                             <span>Invest Now</span>
                             <ChevronRight className="w-4 h-4" />
                           </button>

@@ -50,10 +50,20 @@ const Navbar = () => {
             <button className="p-2 text-gray-400 hover:text-orange-600 transition-colors">
               <Bell className="w-5 h-5" />
             </button>
-            <Link to="/profile" className="flex items-center space-x-2 bg-orange-100 px-3 py-2 rounded-full hover:bg-orange-200 transition-colors">
-              <User className="w-4 h-4 text-orange-600" />
-              <span className="text-sm text-orange-600">Profile</span>
-            </Link>
+            <div className="flex items-center space-x-3">
+              <Link
+                to="/signin"
+                className="text-gray-600 hover:text-orange-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/signup"
+                className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
+              >
+                Sign Up
+              </Link>
+            </div>
           </div>
 
           {/* Mobile menu button */}

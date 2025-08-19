@@ -4,6 +4,74 @@ import { Users, MapPin, Zap, TrendingUp, Award, Plus, Heart, MessageCircle } fro
 const Community = () => {
   const [activeTab, setActiveTab] = useState('pools');
 
+  const handleCreatePool = () => {
+    const poolName = prompt('Enter solar pool name:');
+    const location = prompt('Enter location:');
+    const capacity = prompt('Enter capacity (kW):');
+    const minInvestment = prompt('Enter minimum investment (Rs.):');
+    
+    if (poolName && location && capacity && minInvestment) {
+      alert(`✅ Solar pool created successfully!\n\nName: ${poolName}\nLocation: ${location}\nCapacity: ${capacity} kW\nMin Investment: Rs. ${minInvestment}\n\nPool ID: POOL${Date.now()}`);
+    }
+  };
+
+  const handleJoinPool = (poolId: number) => {
+    const pool = solarPools.find(p => p.id === poolId);
+    if (pool) {
+      const investment = prompt(`Join ${pool.name}?\n\nMinimum investment: ${pool.investment}\nExpected returns: ${pool.returns}\n\nEnter your investment amount (Rs.):`);
+      if (investment) {
+        alert(`✅ Successfully joined ${pool.name}!\n\nInvestment: Rs. ${investment}\nExpected Returns: ${pool.returns}\nMembership ID: MEM${Date.now()}`);
+      }
+    }
+  };
+
+  const handleInvestNow = (poolId: number) => {
+    const pool = solarPools.find(p => p.id === poolId);
+    if (pool) {
+      const investment = prompt(`Invest in ${pool.name}?\n\nMinimum: ${pool.investment}\nExpected Returns: ${pool.returns}\n\nEnter investment amount (Rs.):`);
+      if (investment) {
+        alert(`✅ Investment successful!\n\nProject: ${pool.name}\nAmount: Rs. ${investment}\nExpected Returns: ${pool.returns}\nInvestment ID: INV${Date.now()}`);
+      }
+    }
+  };
+
+  const handleListFarm = () => {
+    const farmName = prompt('Enter farm/project name:');
+    const cropType = prompt('Enter crop type:');
+    const landSize = prompt('Enter land size (acres):');
+    const solarCapacity = prompt('Enter planned solar capacity (kW):');
+    
+    if (farmName && cropType && landSize && solarCapacity) {
+      alert(`✅ Agri-solar project listed!\n\nProject: ${farmName}\nCrop: ${cropType}\nLand: ${landSize} acres\nSolar: ${solarCapacity} kW\n\nProject ID: AGRI${Date.now()}`);
+    }
+  };
+
+  const handleSupportProject = (projectId: number) => {
+    const project = agriSolarProjects.find(p => p.id === projectId);
+    if (project) {
+      const support = prompt(`Support ${project.name}?\n\nFarmer: ${project.farmer}\nLocation: ${project.location}\n\nChoose support type:\n1. Financial Support\n2. Technical Assistance\n3. Equipment Donation\n\nEnter choice (1-3):`);
+      if (support) {
+        const supportTypes = ['Financial Support', 'Technical Assistance', 'Equipment Donation'];
+        const supportType = supportTypes[parseInt(support) - 1] || 'General Support';
+        alert(`✅ Thank you for supporting ${project.name}!\n\nSupport Type: ${supportType}\nFarmer: ${project.farmer}\nSupport ID: SUP${Date.now()}`);
+      }
+    }
+  };
+
+  const handleLearnMore = (projectId: number) => {
+    const project = agriSolarProjects.find(p => p.id === projectId);
+    if (project) {
+      alert(`📋 ${project.name} Details\n\nFarmer: ${project.farmer}\nLocation: ${project.location}\nCrop Type: ${project.cropType}\nLand Size: ${project.landSize}\nSolar Capacity: ${project.solarCapacity}\nMonthly Income: ${project.monthlyIncome}\n\nThis agri-voltaic system combines agriculture with solar energy generation, providing dual land use benefits.`);
+    }
+  };
+
+  const handleShare = () => {
+    const content = prompt('Share your solar journey, ask questions, or celebrate achievements:');
+    if (content) {
+      alert(`✅ Post shared successfully!\n\n"${content}"\n\nPost ID: POST${Date.now()}\nYour post will appear in the community feed.`);
+    }
+  };
+
   const solarPools = [
     {
       id: 1,
@@ -204,7 +272,10 @@ const Community = () => {
           <div>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold text-gray-900">Community Solar Pools</h2>
-              <button className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 flex items-center space-x-2">
+              <button 
+                onClick={handleCreatePool}
+                className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 flex items-center space-x-2"
+              >
                 <Plus className="w-4 h-4" />
                 <span>Create Pool</span>
               </button>
@@ -272,7 +343,10 @@ const Community = () => {
                       <div className="text-sm text-gray-600">
                         Min. Investment: <span className="font-semibold text-gray-900">{pool.investment}</span>
                       </div>
-                      <button className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors">
+                      <button 
+                        onClick={() => pool.status === 'active' ? handleJoinPool(pool.id) : handleInvestNow(pool.id)}
+                        className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"
+                      >
                         {pool.status === 'active' ? 'Join Pool' : 'Invest Now'}
                       </button>
                     </div>
@@ -288,7 +362,10 @@ const Community = () => {
           <div>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold text-gray-900">Agri-Solar Projects</h2>
-              <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center space-x-2">
+              <button 
+                onClick={handleListFarm}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center space-x-2"
+              >
                 <Plus className="w-4 h-4" />
                 <span>List Your Farm</span>
               </button>
@@ -331,10 +408,16 @@ const Community = () => {
                     </div>
 
                     <div className="flex space-x-3">
-                      <button className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                      <button 
+                        onClick={() => handleSupportProject(project.id)}
+                        className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                      >
                         Support Project
                       </button>
-                      <button className="flex-1 border border-green-600 text-green-600 px-4 py-2 rounded-lg hover:bg-green-50 transition-colors">
+                      <button 
+                        onClick={() => handleLearnMore(project.id)}
+                        className="flex-1 border border-green-600 text-green-600 px-4 py-2 rounded-lg hover:bg-green-50 transition-colors"
+                      >
                         Learn More
                       </button>
                     </div>
@@ -360,7 +443,10 @@ const Community = () => {
                     <button className="text-orange-600 hover:text-orange-700 text-sm">📷 Photo</button>
                     <button className="text-orange-600 hover:text-orange-700 text-sm">⚡ Energy Data</button>
                   </div>
-                  <button className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors">
+                  <button 
+                    onClick={handleShare}
+                    className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"
+                  >
                     Share
                   </button>
                 </div>

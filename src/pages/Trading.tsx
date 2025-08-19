@@ -84,7 +84,45 @@ const Trading = () => {
   ];
 
   const handleBuyEnergy = (listingId: number) => {
-    alert(`Initiating purchase for listing ${listingId}`);
+    const listing = availableEnergy.find(l => l.id === listingId);
+    if (listing) {
+      const confirmed = window.confirm(
+        `Purchase ${listing.amount} from ${listing.seller} for ${listing.total}?\n\nThis will initiate a secure energy transfer.`
+      );
+      if (confirmed) {
+        alert(`✅ Purchase initiated!\n\nEnergy: ${listing.amount}\nSeller: ${listing.seller}\nTotal: ${listing.total}\n\nTransaction ID: TXN${Date.now()}`);
+      }
+    }
+  };
+
+  const handleListEnergy = () => {
+    const amount = prompt('Enter energy amount to list (kWh):');
+    const price = prompt('Enter price per kWh (Rs.):');
+    
+    if (amount && price) {
+      const total = (parseFloat(amount) * parseFloat(price)).toFixed(0);
+      alert(`✅ Energy listed successfully!\n\nAmount: ${amount} kWh\nPrice: Rs. ${price}/kWh\nTotal Value: Rs. ${total}\n\nListing ID: LST${Date.now()}`);
+    }
+  };
+
+  const handleEditListing = (listingId: number) => {
+    const listing = myListings.find(l => l.id === listingId);
+    if (listing) {
+      const newPrice = prompt(`Edit price for ${listing.amount}:`, listing.price.replace('Rs. ', '').replace('/kWh', ''));
+      if (newPrice) {
+        alert(`✅ Listing updated!\n\nNew price: Rs. ${newPrice}/kWh\nListing ID: ${listingId}`);
+      }
+    }
+  };
+
+  const handleCancelListing = (listingId: number) => {
+    const listing = myListings.find(l => l.id === listingId);
+    if (listing) {
+      const confirmed = window.confirm(`Cancel listing for ${listing.amount}?`);
+      if (confirmed) {
+        alert(`✅ Listing cancelled!\n\nListing ID: ${listingId}`);
+      }
+    }
   };
 
   return (
@@ -247,7 +285,10 @@ const Trading = () => {
                   placeholder="Price per kWh (Rs.)"
                   className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
                 />
-                <button className="bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-colors">
+                <button 
+                  onClick={handleListEnergy}
+                  className="bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-colors"
+                >
                   List Energy
                 </button>
               </div>
@@ -282,10 +323,16 @@ const Trading = () => {
                         <span>{listing.timeLeft} remaining</span>
                       </div>
                       <div className="space-x-2">
-                        <button className="text-orange-600 hover:text-orange-700 text-sm font-medium">
+                        <button 
+                          onClick={() => handleEditListing(listing.id)}
+                          className="text-orange-600 hover:text-orange-700 text-sm font-medium"
+                        >
                           Edit
                         </button>
-                        <button className="text-red-600 hover:text-red-700 text-sm font-medium">
+                        <button 
+                          onClick={() => handleCancelListing(listing.id)}
+                          className="text-red-600 hover:text-red-700 text-sm font-medium"
+                        >
                           Cancel
                         </button>
                       </div>
