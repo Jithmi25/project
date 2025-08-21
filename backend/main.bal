@@ -1,286 +1,207 @@
 import ballerina/crypto;
 import ballerina/http;
-import ballerina/jwt;
-import ballerina/log;
-import ballerina/time;
+import ballerina/uuid;
+import ballerinax/mongodb;
 
-// CORS configuration
+// Configurables
+configurable string mongoUri = "mongodb+srv://Jithmi:1234@cluster0.jkzmlfz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+
+// MongoDB client
+mongodb:ConnectionConfig connectionConfig = {
+    connection: mongoUri
+};
+mongodb:Client mongoDb = check new (connectionConfig);
+
+// Listeners
+listener http:Listener authListener = new (9090);
+listener http:Listener passwordListener = new (9095);
+
 @http:ServiceConfig {
     cors: {
         allowOrigins: ["http://localhost:5173", "http://localhost:3000"],
-        allowCredentials: false,
-        allowHeaders: ["CORELATION_ID", "Authorization", "Content-Type"],
-        allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+        allowMethods: ["POST", "GET", "OPTIONS"],
+        allowHeaders: ["Content-Type", "Authorization"]
+    }
+}
+service /api on authListener {
+    private final mongodb:Database userDb;
+
+    function init() returns error? {
+        self.userDb = check mongoDb->getDatabase("userDb");
+    }
+
+    resource function post signup(UserInput req) returns http:Response|error {
+        mongodb:Collection users = check self.userDb->getCollection("users");
+
+        // Validate password length
+        if req.password.length() < 8 {
+            return createErrorResponse("Password must be at least 8 characters.");
+        }
+
+        // Check for duplicate username or email
+        stream<User, error?> dup = check users->find({
+            "$or": [{username: req.username}, {email: req.email}]
+        });
+        User[] dupArr = check from User u in dup
+            select u;
+
+        if dupArr.length() > 0 {
+            return createErrorResponse("Username or email already exists.");
+        }
+
+        // Hash password and create user
+        string hashed = crypto:hashSha256(req.password.toBytes()).toBase16();
+        User newUser = {
+            id: uuid:createType4AsString(),
+            username: req.username,
+            password: hashed,
+            email: req.email ?: "",
+            resetToken: ()
+        };
+
+        check users->insertOne(newUser);
+        return jsonMsg("Signup successful. Please proceed to login.");
+    }
+
+    resource function post login(LoginInput req) returns http:Response|error {
+        mongodb:Collection users = check self.userDb->getCollection("users");
+
+        // Hash the provided password
+        string hashed = crypto:hashSha256(req.password.toBytes()).toBase16();
+
+        // Find user with matching username and password
+        stream<User, error?> rs = check users->find({
+            username: req.username,
+            password: hashed
+        });
+        User[] hits = check from User u in rs
+            select u;
+
+        if hits.length() == 0 {
+            return createErrorResponse("Invalid username or password.");
+        }
+
+        return jsonMsg("Login successful!");
+    }
+
+    resource function get profile(http:Caller caller, http:Request req) returns error? {
+        // Since JWT is removed, just return a generic message
+        check caller->respond({message: "Profile access currently not secured by token."});
     }
 }
 
-service /auth on new http:Listener(8080) {
+@http:ServiceConfig {
+    cors: {
+        allowOrigins: ["http://localhost:5173", "http://localhost:3000"],
+        allowMethods: ["POST", "OPTIONS"],
+        allowHeaders: ["Content-Type"]
+    }
+}
+service /api on passwordListener {
+    private final mongodb:Database userDb;
 
-    // Sign Up endpoint
-    resource function post signup(http:Caller caller, http:Request req) returns error? {
-        json|error payload = req.getJsonPayload();
+    function init() returns error? {
+        self.userDb = check mongoDb->getDatabase("userDb");
+    }
 
-        if (payload is error) {
-            json response = {
-                "success": false,
-                "message": "Invalid request payload"
-            };
-            check caller->respond(response, statusCode = 400);
-            return;
+    resource function post forgot(ResetRequest req) returns http:Response|error {
+        mongodb:Collection users = check self.userDb->getCollection("users");
+
+        // Find user by username and email
+        stream<User, error?> s = check users->find({
+            username: req.username,
+            email: req.email
+        });
+        User[] found = check from User u in s
+            select u;
+
+        if found.length() == 0 {
+            return createErrorResponse("User not found.");
         }
 
-        json requestData = <json>payload;
-
-        // Extract user data
-        string fullName = requestData.fullName.toString();
-        string email = requestData.email.toString();
-        string phone = requestData.phone.toString();
-        string location = requestData.location.toString();
-        string password = requestData.password.toString();
-        string userType = requestData.userType.toString();
-
-        // Validate required fields
-        if (fullName == "" || email == "" || password == "") {
-            json response = {
-                "success": false,
-                "message": "Full name, email, and password are required"
-            };
-            check caller->respond(response, statusCode = 400);
-            return;
-        }
-
-        // Hash password (in production, use proper password hashing)
-        string hashedPassword = crypto:hashSha256(password.toBytes()).toBase16();
-
-        // Generate JWT token
-        jwt:IssuerConfig issuerConfig = {
-            username: email,
-            issuer: "solarshare.lk",
-            audience: ["solarshare-users"],
-            expTime: time:utcNow()[0] + 86400, // 24 hours
-            signatureConfig: {
-                config: {
-                    keyStore: {
-                        path: "resources/keystore.p12",
-                        password: "ballerina"
-                    },
-                    keyAlias: "ballerina",
-                    keyPassword: "ballerina"
-                }
+        // Generate reset token
+        string token = uuid:createType4AsString();
+        mongodb:Update updateDoc = {
+            "$set": {
+                "resetToken": token
             }
         };
 
-        string|jwt:Error jwtToken = jwt:issue(issuerConfig);
-
-        if (jwtToken is jwt:Error) {
-            log:printError("JWT generation failed", jwtToken);
-            json response = {
-                "success": false,
-                "message": "Token generation failed"
-            };
-            check caller->respond(response, statusCode = 500);
-            return;
-        }
-
-        // Create user object
-        json user = {
-            "id": generateUserId(),
-            "fullName": fullName,
-            "email": email,
-            "phone": phone,
-            "location": location,
-            "userType": userType,
-            "createdAt": time:utcNow()[0],
-            "isActive": true
-        };
-
-        // Success response
-        json response = {
-            "success": true,
-            "message": "Account created successfully",
-            "token": jwtToken,
-            "user": user
-        };
-
-        check caller->respond(response);
-        log:printInfo("New user registered: " + email);
+        _ = check users->updateOne({"username": req.username}, updateDoc);
+        return jsonMsg("Password reset token generated. Token: " + token);
     }
 
-    // Sign In endpoint
-    resource function post signin(http:Caller caller, http:Request req) returns error? {
-        json|error payload = req.getJsonPayload();
+    resource function post reset(ResetInput req) returns http:Response|error {
+        mongodb:Collection users = check self.userDb->getCollection("users");
 
-        if (payload is error) {
-            json response = {
-                "success": false,
-                "message": "Invalid request payload"
-            };
-            check caller->respond(response, statusCode = 400);
-            return;
+        // Find user by reset token
+        stream<User, error?> s = check users->find({
+            resetToken: req.token
+        });
+        User[] hits = check from User u in s
+            select u;
+
+        if hits.length() == 0 {
+            return createErrorResponse("Invalid or expired token.");
         }
 
-        json requestData = <json>payload;
-        string email = requestData.email.toString();
-        string password = requestData.password.toString();
-
-        // Validate credentials (in production, check against database)
-        if (email == "" || password == "") {
-            json response = {
-                "success": false,
-                "message": "Email and password are required"
-            };
-            check caller->respond(response, statusCode = 400);
-            return;
+        // Validate new password
+        if req.newPassword.length() < 8 {
+            return createErrorResponse("Password must be at least 8 characters.");
         }
 
-        // Mock user validation (replace with database lookup)
-        if (email == "demo@solarshare.lk" && password == "demo123") {
-            // Generate JWT token
-            jwt:IssuerConfig issuerConfig = {
-                username: email,
-                issuer: "solarshare.lk",
-                audience: ["solarshare-users"],
-                expTime: time:utcNow()[0] + 86400, // 24 hours
-                signatureConfig: {
-                    config: {
-                        keyStore: {
-                            path: "resources/keystore.p12",
-                            password: "ballerina"
-                        },
-                        keyAlias: "ballerina",
-                        keyPassword: "ballerina"
-                    }
-                }
-            };
-
-            string|jwt:Error jwtToken = jwt:issue(issuerConfig);
-
-            if (jwtToken is jwt:Error) {
-                log:printError("JWT generation failed", jwtToken);
-                json response = {
-                    "success": false,
-                    "message": "Authentication failed"
-                };
-                check caller->respond(response, statusCode = 500);
-                return;
-            }
-
-            json user = {
-                "id": "USER001",
-                "fullName": "Kasun Perera",
-                "email": email,
-                "phone": "+94 77 123 4567",
-                "location": "Kandy, Sri Lanka",
-                "userType": "individual",
-                "isActive": true
-            };
-
-            json response = {
-                "success": true,
-                "message": "Sign in successful",
-                "token": jwtToken,
-                "user": user
-            };
-
-            check caller->respond(response);
-            log:printInfo("User signed in: " + email);
-        } else {
-            json response = {
-                "success": false,
-                "message": "Invalid email or password"
-            };
-            check caller->respond(response, statusCode = 401);
-        }
-    }
-
-    // Forgot Password endpoint
-    resource function post 'forgot\-password(http:Caller caller, http:Request req) returns error? {
-        json|error payload = req.getJsonPayload();
-
-        if (payload is error) {
-            json response = {
-                "success": false,
-                "message": "Invalid request payload"
-            };
-            check caller->respond(response, statusCode = 400);
-            return;
-        }
-
-        json requestData = <json>payload;
-        string email = requestData.email.toString();
-
-        if (email == "") {
-            json response = {
-                "success": false,
-                "message": "Email is required"
-            };
-            check caller->respond(response, statusCode = 400);
-            return;
-        }
-
-        // Mock password reset (in production, send actual email)
-        log:printInfo("Password reset requested for: " + email);
-
-        json response = {
-            "success": true,
-            "message": "Password reset instructions have been sent to your email"
+        // Update password and remove reset token
+        string hashed = crypto:hashSha256(req.newPassword.toBytes()).toBase16();
+        mongodb:Update updateDoc = {
+            "$set": {"password": hashed},
+            "$unset": {"resetToken": ""}
         };
 
-        check caller->respond(response);
-    }
-
-    // Verify Token endpoint
-    resource function post verify(http:Caller caller, http:Request req) returns error? {
-        string|http:HeaderNotFoundError authHeader = req.getHeader("Authorization");
-
-        if (authHeader is http:HeaderNotFoundError) {
-            json response = {
-                "success": false,
-                "message": "Authorization header missing"
-            };
-            check caller->respond(response, statusCode = 401);
-            return;
-        }
-
-        string token = authHeader.substring(7); // Remove "Bearer " prefix
-
-        jwt:ValidatorConfig validatorConfig = {
-            issuer: "solarshare.lk",
-            audience: ["solarshare-users"],
-            signatureConfig: {
-                trustStoreConfig: {
-                    trustStore: {
-                        path: "resources/keystore.p12",
-                        password: "ballerina"
-                    },
-                    certAlias: "ballerina"
-                }
-            }
-        };
-
-        jwt:Payload|jwt:Error result = jwt:validate(token, validatorConfig);
-
-        if (result is jwt:Error) {
-            json response = {
-                "success": false,
-                "message": "Invalid or expired token"
-            };
-            check caller->respond(response, statusCode = 401);
-            return;
-        }
-
-        json response = {
-            "success": true,
-            "message": "Token is valid",
-            "payload": result
-        };
-
-        check caller->respond(response);
+        _ = check users->updateOne({"resetToken": req.token}, updateDoc);
+        return jsonMsg("Password reset successful.");
     }
 }
 
-// Helper function to generate user ID
-function generateUserId() returns string {
-    int timestamp = time:utcNow()[0];
-    return "USER" + timestamp.toString();
+// Helper functions
+function jsonMsg(string m) returns http:Response {
+    http:Response r = new;
+    r.setPayload({message: m});
+    return r;
 }
+
+function createErrorResponse(string message) returns http:Response {
+    http:Response r = new;
+    r.statusCode = 400;
+    r.setPayload({message: message});
+    return r;
+}
+
+// Data models
+type User record {|
+    string id;
+    string username;
+    string password;
+    string email;
+    string? resetToken;
+|};
+
+type UserInput record {|
+    string username;
+    string password;
+    string email?;
+|};
+
+type LoginInput record {|
+    string username;
+    string password;
+|};
+
+type ResetRequest record {|
+    string username;
+    string email;
+|};
+
+type ResetInput record {|
+    string token;
+    string newPassword;
+|};

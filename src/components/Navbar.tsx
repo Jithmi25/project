@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Sun, Menu, X, User, Bell } from 'lucide-react';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const navItems = [
     { path: '/', label: 'Home' },
@@ -15,6 +16,14 @@ const Navbar = () => {
   ];
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/signin');
+  };
+
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   return (
     <nav className="bg-white shadow-lg sticky top-0 z-50">
@@ -52,17 +61,18 @@ const Navbar = () => {
             </button>
             <div className="flex items-center space-x-3">
               <Link
-                to="/signin"
-                className="text-gray-600 hover:text-orange-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                to="/profile"
+                className="flex items-center space-x-2 text-gray-600 hover:text-orange-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
               >
-                Sign In
+                <User className="w-4 h-4" />
+                <span>{user.fullName || user.username || 'Profile'}</span>
               </Link>
-              <Link
-                to="/signup"
+              <button
+                onClick={handleLogout}
                 className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
               >
-                Sign Up
-              </Link>
+                Logout
+              </button>
             </div>
           </div>
 
@@ -102,6 +112,15 @@ const Navbar = () => {
               >
                 Profile
               </Link>
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  handleLogout();
+                }}
+                className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                Logout
+              </button>
             </div>
           </div>
         )}

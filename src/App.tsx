@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
@@ -12,25 +12,81 @@ import Community from './pages/Community';
 import Investment from './pages/Investment';
 import Profile from './pages/Profile';
 
+// Protected Route Component
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const token = localStorage.getItem('token');
+  return token ? <>{children}</> : <Navigate to="/signin" replace />;
+};
+
+// Public Route Component (redirect to home if already logged in)
+const PublicRoute = ({ children }: { children: React.ReactNode }) => {
+  const token = localStorage.getItem('token');
+  return !token ? <>{children}</> : <Navigate to="/" replace />;
+};
+
 function App() {
+  const isAuthenticated = localStorage.getItem('token');
+
   return (
     <Router>
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-green-50">
-        <Navbar />
+        {isAuthenticated && <Navbar />}
         <main>
           <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/signin" element={<SignIn />} />
-            <Route path="/signup" element={<SignUp />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/trading" element={<Trading />} />
-            <Route path="/community" element={<Community />} />
-            <Route path="/investment" element={<Investment />} />
-            <Route path="/profile" element={<Profile />} />
+            {/* Public Routes - Only accessible when not logged in */}
+            <Route path="/signin" element={
+              <PublicRoute>
+                <SignIn />
+              </PublicRoute>
+            } />
+            <Route path="/signup" element={
+              <PublicRoute>
+                <SignUp />
+              </PublicRoute>
+            } />
+            <Route path="/forgot-password" element={
+              <PublicRoute>
+                <ForgotPassword />
+              </PublicRoute>
+            } />
+            
+            {/* Protected Routes - Only accessible when logged in */}
+            <Route path="/" element={
+              <ProtectedRoute>
+                <HomePage />
+              </ProtectedRoute>
+            } />
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/trading" element={
+              <ProtectedRoute>
+                <Trading />
+              </ProtectedRoute>
+            } />
+            <Route path="/community" element={
+              <ProtectedRoute>
+                <Community />
+              </ProtectedRoute>
+            } />
+            <Route path="/investment" element={
+              <ProtectedRoute>
+                <Investment />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            } />
+            
+            {/* Redirect any unknown routes */}
+            <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/signin"} replace />} />
           </Routes>
         </main>
-        <Footer />
+        {isAuthenticated && <Footer />}
       </div>
     </Router>
   );

@@ -36,29 +36,26 @@ const SignUp = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:8080/auth/signup', {
+      const response = await fetch('http://localhost:9090/api/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          fullName: formData.fullName,
+          username: formData.email,
           email: formData.email,
-          phone: formData.phone,
-          location: formData.location,
-          password: formData.password,
-          userType: formData.userType
+          password: formData.password
         }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        window.location.href = '/dashboard';
+        // After successful signup, redirect to signin
+        alert('Account created successfully! Please sign in.');
+        window.location.href = '/signin';
       } else {
-        setError(data.message || 'Sign up failed');
+        setError(data.message || 'Registration failed');
       }
     } catch (err) {
       setError('Network error. Please try again.');

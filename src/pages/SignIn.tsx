@@ -17,22 +17,30 @@ const SignIn = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:8080/auth/signin', {
+      const response = await fetch('http://localhost:9090/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          username: formData.email,
+          password: formData.password
+        }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        window.location.href = '/dashboard';
+        // Store a simple token (since backend doesn't return JWT)
+        localStorage.setItem('token', 'authenticated');
+        localStorage.setItem('user', JSON.stringify({
+          username: formData.email,
+          email: formData.email,
+          fullName: formData.email.split('@')[0]
+        }));
+        window.location.href = '/';
       } else {
-        setError(data.message || 'Sign in failed');
+        setError(data.message || 'Invalid username or password');
       }
     } catch (err) {
       setError('Network error. Please try again.');
